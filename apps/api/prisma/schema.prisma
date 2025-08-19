@@ -1,0 +1,353 @@
+// ---------- Generator & Datasource ----------
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+  // If you use a privileged shadow DB user, uncomment the next line:
+  // shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+// ---------- Enums ----------
+enum Gender {
+  male
+  female
+  other
+}
+
+enum UserStatus {
+  active
+  inactive
+  locked
+}
+
+enum RoomStatus {
+  available
+  maintenance
+}
+
+enum BookingKind {
+  room
+  class
+}
+
+enum BookingStatus {
+  pending
+  confirmed
+  completed
+  canceled
+}
+
+enum BookingSource {
+  web
+  mobile
+  walkin
+}
+
+enum PaymentType {
+  deposit
+  balance
+  refund
+}
+
+enum PaymentStatus {
+  pending
+  paid
+  failed
+}
+
+enum AttendanceStatus {
+  present
+  absent
+}
+
+// ---------- Core Models ----------
+model Role {
+  id            Int             @id @default(autoincrement()) @db.UnsignedTinyInt
+  name          String          @unique @db.VarChar(32)
+  users         User[]
+  EventAudience EventAudience[]
+}
+
+model User {
+  id             BigInt     @id @default(autoincrement()) @db.UnsignedBigInt
+  email          String     @unique @db.VarChar(191)
+  phone          String?    @unique @db.VarChar(32)
+  password_hash  String     @db.VarChar(191)
+  name           String     @db.VarChar(128)
+  gender         Gender?
+  dob            DateTime?  @db.Date
+  status         UserStatus @default(active)
+  points_balance Int        @default(0)
+  created_at     DateTime   @default(now()) @db.Timestamp(0)
+  updated_at     DateTime   @updatedAt @db.Timestamp(0)
+
+  role_id Int  @db.UnsignedTinyInt
+  role    Role @relation(fields: [role_id], references: [id])
+
+  sessions         Session[]
+  classes_instruct Class[]         @relation("InstructorClasses")
+  bookings         Booking[]
+  points_ledger    PointsLedger[]
+  attendance       Attendance[]
+  activity_logs    ActivityLog[]   @relation("ActivityActor")
+  Event            Event[]
+  EventAudience    EventAudience[]
+  EventRead        EventRead[]
+}
+
+model Session {
+  id            BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  user_id       BigInt   @db.UnsignedBigInt
+  refresh_token String   @unique @db.Char(64)
+  expires_at    DateTime @db.DateTime(3)
+  created_at    DateTime @default(now()) @db.Timestamp(0)
+
+  user User @relation(fields: [user_id], references: [id])
+
+  @@index([user_id])
+}
+
+model RoomType {
+  id         BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  name       String   @unique @db.VarChar(64)
+  code       String?  @unique @db.VarChar(32)
+  created_at DateTime @default(now()) @db.Timestamp(0)
+  updated_at DateTime @updatedAt @db.Timestamp(0)
+
+  rooms Room[]
+}
+
+model Room {
+  id             BigInt     @id @default(autoincrement()) @db.UnsignedBigInt
+  name           String     @db.VarChar(64)
+  room_type_id   BigInt     @db.UnsignedBigInt
+  capacity       Int
+  status         RoomStatus @default(available)
+  floor          Int?
+  price_per_hour Decimal?   @db.Decimal(10, 2)
+  features       Json?
+  created_at     DateTime   @default(now()) @db.Timestamp(0)
+  updated_at     DateTime   @updatedAt @db.Timestamp(0)
+
+  room_type RoomType        @relation(fields: [room_type_id], references: [id])
+  schedules ClassSchedule[]
+  bookings  Booking[]
+
+  @@unique([name])
+  @@index([status])
+  @@index([room_type_id])
+}
+
+model Class {
+  id            BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  title         String   @db.VarChar(191)
+  description   String?  @db.MediumText
+  instructor_id BigInt   @db.UnsignedBigInt
+  max_seats     Int
+  created_at    DateTime @default(now()) @db.Timestamp(0)
+  updated_at    DateTime @updatedAt @db.Timestamp(0)
+
+  instructor User            @relation("InstructorClasses", fields: [instructor_id], references: [id])
+  schedules  ClassSchedule[]
+
+  @@index([instructor_id])
+}
+
+model ClassSchedule {
+  id                BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  class_id          BigInt   @db.UnsignedBigInt
+  room_id           BigInt?  @db.UnsignedBigInt
+  starts_at         DateTime @db.DateTime(3)
+  ends_at           DateTime @db.DateTime(3)
+  capacity_override Int?
+  created_at        DateTime @default(now()) @db.Timestamp(0)
+  updated_at        DateTime @updatedAt @db.Timestamp(0)
+
+  class      Class        @relation(fields: [class_id], references: [id])
+  room       Room?        @relation(fields: [room_id], references: [id])
+  bookings   Booking[]
+  attendance Attendance[]
+
+  @@index([class_id, starts_at, ends_at])
+  @@index([room_id, starts_at, ends_at])
+}
+
+model Booking {
+  id                BigInt        @id @default(autoincrement()) @db.UnsignedBigInt
+  user_id           BigInt        @db.UnsignedBigInt
+  kind              BookingKind
+  room_id           BigInt?       @db.UnsignedBigInt
+  class_schedule_id BigInt?       @db.UnsignedBigInt
+  status            BookingStatus @default(pending)
+  source            BookingSource
+  starts_at         DateTime      @db.DateTime(3)
+  ends_at           DateTime      @db.DateTime(3)
+  holds_expires_at  DateTime?
+  created_at        DateTime      @default(now()) @db.Timestamp(0)
+  updated_at        DateTime      @updatedAt @db.Timestamp(0)
+
+  user           User           @relation(fields: [user_id], references: [id])
+  room           Room?          @relation(fields: [room_id], references: [id])
+  class_schedule ClassSchedule? @relation(fields: [class_schedule_id], references: [id])
+  payments       Payment[]
+  pointsLedger   PointsLedger[]
+
+  @@index([room_id, starts_at, ends_at, status])
+  @@index([class_schedule_id, status])
+  @@index([user_id, created_at])
+  @@index([status, created_at])
+}
+
+model Payment {
+  id           BigInt        @id @default(autoincrement()) @db.UnsignedBigInt
+  booking_id   BigInt        @db.UnsignedBigInt
+  amount       Decimal       @db.Decimal(12, 2)
+  currency     String        @default("MMK") @db.Char(3)
+  type         PaymentType
+  provider     String        @db.VarChar(32)
+  provider_ref String?       @db.VarChar(128)
+  status       PaymentStatus @default(pending)
+  paid_at      DateTime?
+  created_at   DateTime      @default(now()) @db.Timestamp(0)
+
+  booking Booking @relation(fields: [booking_id], references: [id])
+
+  @@index([booking_id, status])
+  @@index([paid_at])
+}
+
+model PointsLedger {
+  id         BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  user_id    BigInt   @db.UnsignedBigInt
+  booking_id BigInt?  @db.UnsignedBigInt
+  delta      Int
+  reason     String   @db.VarChar(64)
+  created_at DateTime @default(now()) @db.Timestamp(0)
+
+  user    User     @relation(fields: [user_id], references: [id])
+  booking Booking? @relation(fields: [booking_id], references: [id])
+
+  @@index([user_id, created_at])
+}
+
+model Attendance {
+  id                BigInt           @id @default(autoincrement()) @db.UnsignedBigInt
+  class_schedule_id BigInt           @db.UnsignedBigInt
+  user_id           BigInt           @db.UnsignedBigInt
+  status            AttendanceStatus
+  checked_at        DateTime         @db.DateTime(3)
+
+  schedule ClassSchedule @relation(fields: [class_schedule_id], references: [id])
+  user     User          @relation(fields: [user_id], references: [id])
+
+  @@unique([class_schedule_id, user_id])
+  @@index([checked_at])
+}
+
+model Policy {
+  id         BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  title      String   @db.VarChar(191)
+  body       String   @db.MediumText
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now()) @db.Timestamp(0)
+  updated_at DateTime @updatedAt @db.Timestamp(0)
+
+  @@index([is_active])
+}
+
+model ActivityLog {
+  id            BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  actor_user_id BigInt   @db.UnsignedBigInt
+  action        String   @db.VarChar(64)
+  entity_type   String   @db.VarChar(48)
+  entity_id     BigInt   @db.UnsignedBigInt
+  meta          Json?
+  created_at    DateTime @default(now()) @db.Timestamp(0)
+
+  actor User @relation("ActivityActor", fields: [actor_user_id], references: [id])
+
+  @@index([entity_type, entity_id])
+  @@index([actor_user_id, created_at])
+}
+
+// ---------- Events Module ----------
+model Event {
+  id             BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  title          String    @db.VarChar(191)
+  body           String    @db.MediumText
+  type           String    @db.VarChar(32) // announcement | promotion | maintenance | class_update | room_update | other
+  priority       String    @db.VarChar(16) // low | normal | high
+  image_url      String?   @db.VarChar(512)
+  deep_link      String?   @db.VarChar(512)
+  cta_label      String?   @db.VarChar(64)
+  cta_link       String?   @db.VarChar(512)
+  is_sticky      Boolean   @default(false)
+  publish_at     DateTime  @db.DateTime(3)
+  expire_at      DateTime?
+  status         String    @db.VarChar(16) // draft | scheduled | published | archived
+  author_user_id BigInt    @db.UnsignedBigInt
+  created_at     DateTime  @default(now()) @db.Timestamp(0)
+  updated_at     DateTime  @updatedAt @db.Timestamp(0)
+
+  author    User            @relation(fields: [author_user_id], references: [id])
+  audiences EventAudience[]
+  tags      EventTag[]
+  reads     EventRead[]
+  media     EventMedia[]
+}
+
+model EventAudience {
+  id       BigInt  @id @default(autoincrement()) @db.UnsignedBigInt
+  event_id BigInt  @db.UnsignedBigInt
+  role_id  Int?    @db.UnsignedTinyInt
+  user_id  BigInt  @db.UnsignedBigInt
+  tag      String? @db.VarChar(64)
+
+  event Event @relation(fields: [event_id], references: [id])
+  role  Role? @relation(fields: [role_id], references: [id])
+  user  User? @relation(fields: [user_id], references: [id])
+
+  @@index([event_id])
+  @@index([role_id])
+  @@index([user_id])
+}
+
+model EventTag {
+  id       BigInt @id @default(autoincrement()) @db.UnsignedBigInt
+  event_id BigInt @db.UnsignedBigInt
+  tag      String @db.VarChar(64)
+
+  event Event @relation(fields: [event_id], references: [id])
+
+  @@unique([event_id, tag])
+  @@index([tag])
+}
+
+model EventRead {
+  id        BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  event_id  BigInt   @db.UnsignedBigInt
+  user_id   BigInt   @db.UnsignedBigInt
+  read_at   DateTime @db.DateTime(3)
+  dismissed Boolean  @default(false)
+
+  event Event @relation(fields: [event_id], references: [id])
+  user  User  @relation(fields: [user_id], references: [id])
+
+  @@unique([event_id, user_id])
+  @@index([user_id, read_at])
+}
+
+model EventMedia {
+  id         BigInt @id @default(autoincrement()) @db.UnsignedBigInt
+  event_id   BigInt @db.UnsignedBigInt
+  url        String @db.VarChar(512)
+  kind       String @db.VarChar(16)
+  sort_order Int    @default(0)
+
+  event Event @relation(fields: [event_id], references: [id])
+
+  @@index([event_id, sort_order])
+}
