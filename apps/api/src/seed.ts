@@ -7,144 +7,241 @@ async function main() {
   console.log('🌱 Starting database seed...');
 
   // Create roles
-  console.log('Creating roles...');
   const adminRole = await prisma.role.upsert({
     where: { name: 'admin' },
     update: {},
-    create: {
-      name: 'admin',
-    },
-  });
-
-  const staffRole = await prisma.role.upsert({
-    where: { name: 'staff' },
-    update: {},
-    create: {
-      name: 'staff',
-    },
+    create: { name: 'admin' },
   });
 
   const userRole = await prisma.role.upsert({
     where: { name: 'user' },
     update: {},
-    create: {
-      name: 'user',
-    },
+    create: { name: 'user' },
   });
 
-  console.log('✅ Roles created:', { adminRole, staffRole, userRole });
+  console.log('✅ Roles created');
 
   // Create admin user
-  console.log('Creating admin user...');
-  const adminPassword = await bcrypt.hash('admin123', 12);
-  
   const adminUser = await prisma.user.upsert({
     where: { email: 'admin@jphone.com' },
     update: {},
     create: {
       email: 'admin@jphone.com',
-      password_hash: adminPassword,
+      password_hash: '$2a$10$K7L1OJ45/4Y2nIvhRVpCe.FSmhDdWoXehVzJptJ/op0lSsvqNu1.m', // password: admin123
       name: 'Admin User',
-      phone: '+959123456789',
-      gender: 'other',
-      status: 'active',
-      points_balance: 1000,
       role_id: adminRole.id,
     },
   });
 
-  console.log('✅ Admin user created:', adminUser);
+  console.log('✅ Admin user created');
 
-  // Create some sample room types
-  console.log('Creating room types...');
-  const roomType1 = await prisma.roomType.upsert({
-    where: { name: 'Standard Room' },
-    update: {},
-    create: {
-      name: 'Standard Room',
-      code: 'STD',
-    },
-  });
+  // Create room types
+  const roomTypes = await Promise.all([
+    prisma.roomType.upsert({
+      where: { name: 'Conference Room' },
+      update: {},
+      create: {
+        name: 'Conference Room',
+        code: 'CONF',
+      },
+    }),
+    prisma.roomType.upsert({
+      where: { name: 'Meeting Room' },
+      update: {},
+      create: {
+        name: 'Meeting Room',
+        code: 'MEET',
+      },
+    }),
+    prisma.roomType.upsert({
+      where: { name: 'Training Room' },
+      update: {},
+      create: {
+        name: 'Training Room',
+        code: 'TRAIN',
+      },
+    }),
+    prisma.roomType.upsert({
+      where: { name: 'Private Office' },
+      update: {},
+      create: {
+        name: 'Private Office',
+        code: 'OFFICE',
+      },
+    }),
+  ]);
 
-  const roomType2 = await prisma.roomType.upsert({
-    where: { name: 'Premium Room' },
-    update: {},
-    create: {
-      name: 'Premium Room',
-      code: 'PRM',
-    },
-  });
+  console.log('✅ Room types created');
 
-  console.log('✅ Room types created:', { roomType1, roomType2 });
+  // Create rooms
+  const rooms = await Promise.all([
+    prisma.room.upsert({
+      where: { name: 'Conference Room A' },
+      update: {},
+      create: {
+        name: 'Conference Room A',
+        room_type_id: roomTypes[0].id,
+        capacity: 20,
+        status: 'available',
+        floor: 1,
+        price_per_hour: 50.00,
+        features: {
+          projector: true,
+          whiteboard: true,
+          videoConference: true,
+        },
+      },
+    }),
+    prisma.room.upsert({
+      where: { name: 'Conference Room B' },
+      update: {},
+      create: {
+        name: 'Conference Room B',
+        room_type_id: roomTypes[0].id,
+        capacity: 15,
+        status: 'available',
+        floor: 1,
+        price_per_hour: 40.00,
+        features: {
+          projector: true,
+          whiteboard: true,
+        },
+      },
+    }),
+    prisma.room.upsert({
+      where: { name: 'Meeting Room 1' },
+      update: {},
+      create: {
+        name: 'Meeting Room 1',
+        room_type_id: roomTypes[1].id,
+        capacity: 8,
+        status: 'available',
+        floor: 2,
+        price_per_hour: 25.00,
+        features: {
+          whiteboard: true,
+        },
+      },
+    }),
+    prisma.room.upsert({
+      where: { name: 'Meeting Room 2' },
+      update: {},
+      create: {
+        name: 'Meeting Room 2',
+        room_type_id: roomTypes[1].id,
+        capacity: 6,
+        status: 'maintenance',
+        floor: 2,
+        price_per_hour: 20.00,
+        features: {},
+      },
+    }),
+    prisma.room.upsert({
+      where: { name: 'Training Room Alpha' },
+      update: {},
+      create: {
+        name: 'Training Room Alpha',
+        room_type_id: roomTypes[2].id,
+        capacity: 30,
+        status: 'available',
+        floor: 3,
+        price_per_hour: 60.00,
+        features: {
+          projector: true,
+          whiteboard: true,
+          videoConference: true,
+          soundSystem: true,
+        },
+      },
+    }),
+    prisma.room.upsert({
+      where: { name: 'Private Office 101' },
+      update: {},
+      create: {
+        name: 'Private Office 101',
+        room_type_id: roomTypes[3].id,
+        capacity: 2,
+        status: 'available',
+        floor: 1,
+        price_per_hour: 35.00,
+        features: {
+          desk: true,
+          chair: true,
+          wifi: true,
+        },
+      },
+    }),
+  ]);
 
-  // Create some sample rooms
-  console.log('Creating rooms...');
-  const room1 = await prisma.room.upsert({
-    where: { name: 'Room 1' },
-    update: {},
-    create: {
-      name: 'Room 1',
-      room_type_id: roomType1.id,
-      capacity: 4,
-      floor: 1,
-      price_per_hour: 5000, // 5000 MMK
-      features: { wifi: true, projector: false, whiteboard: true },
-    },
-  });
+  console.log('✅ Rooms created');
 
-  const room2 = await prisma.room.upsert({
-    where: { name: 'Room 2' },
-    update: {},
-    create: {
-      name: 'Room 2',
-      room_type_id: roomType1.id,
-      capacity: 6,
-      floor: 1,
-      price_per_hour: 6000, // 6000 MMK
-      features: { wifi: true, projector: true, whiteboard: true },
-    },
-  });
+  // Create some sample classes
+  const classes = await Promise.all([
+    prisma.class.upsert({
+      where: { id: 1 },
+      update: {},
+      create: {
+        id: 1,
+        title: 'Introduction to Programming',
+        description: 'Learn the basics of programming with Python',
+        instructor_id: adminUser.id,
+        max_seats: 25,
+      },
+    }),
+    prisma.class.upsert({
+      where: { id: 2 },
+      update: {},
+      create: {
+        id: 2,
+        title: 'Web Development Fundamentals',
+        description: 'Build modern web applications with React',
+        instructor_id: adminUser.id,
+        max_seats: 20,
+      },
+    }),
+  ]);
 
-  const room3 = await prisma.room.upsert({
-    where: { name: 'Room 3' },
-    update: {},
-    create: {
-      name: 'Room 3',
-      room_type_id: roomType2.id,
-      capacity: 8,
-      floor: 2,
-      price_per_hour: 8000, // 8000 MMK
-      features: { wifi: true, projector: true, whiteboard: true, sound: true },
-    },
-  });
+  console.log('✅ Classes created');
 
-  console.log('✅ Rooms created:', { room1, room2, room3 });
+  // Create some sample class schedules
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(10, 0, 0, 0);
 
-  // Create some sample policies
-  console.log('Creating policies...');
-  const policy1 = await prisma.policy.create({
-    data: {
-      title: 'Room Booking Policy',
-      body: 'Rooms can be booked for a minimum of 1 hour and maximum of 8 hours per day. Payment is required at the time of booking.',
-      is_active: true,
-    },
-  });
+  const classSchedules = await Promise.all([
+    prisma.classSchedule.upsert({
+      where: { id: 1 },
+      update: {},
+      create: {
+        id: 1,
+        class_id: classes[0].id,
+        room_id: rooms[4].id, // Training Room Alpha
+        starts_at: tomorrow,
+        ends_at: new Date(tomorrow.getTime() + 2 * 60 * 60 * 1000), // 2 hours later
+        capacity_override: 25,
+      },
+    }),
+    prisma.classSchedule.upsert({
+      where: { id: 2 },
+      update: {},
+      create: {
+        id: 2,
+        class_id: classes[1].id,
+        room_id: rooms[0].id, // Conference Room A
+        starts_at: new Date(tomorrow.getTime() + 3 * 60 * 60 * 1000),
+        ends_at: new Date(tomorrow.getTime() + 5 * 60 * 60 * 1000), // 2 hours later
+        capacity_override: 20,
+      },
+    }),
+  ]);
 
-  const policy2 = await prisma.policy.create({
-    data: {
-      title: 'Cancellation Policy',
-      body: 'Bookings can be cancelled up to 2 hours before the scheduled time. Late cancellations may incur a fee.',
-      is_active: true,
-    },
-  });
-
-  console.log('✅ Policies created:', { policy1, policy2 });
+  console.log('✅ Class schedules created');
 
   console.log('🎉 Database seeding completed successfully!');
-  console.log('\n📋 Login Credentials:');
-  console.log('Email: admin@jphone.com');
-  console.log('Password: admin123');
-  console.log('\n🔑 Use these credentials to login to the admin panel');
+  console.log(`Created ${roomTypes.length} room types`);
+  console.log(`Created ${rooms.length} rooms`);
+  console.log(`Created ${classes.length} classes`);
+  console.log(`Created ${classSchedules.length} class schedules`);
 }
 
 main()

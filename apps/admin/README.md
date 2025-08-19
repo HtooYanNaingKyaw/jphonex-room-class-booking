@@ -1,69 +1,148 @@
-# React + TypeScript + Vite
+# JPhoniex Admin Panel
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A comprehensive admin panel for managing room bookings, classes, users, and more.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### Room Management
+- **Room Types**: Create and manage different categories of rooms (Conference, Meeting, Training, Private Office)
+- **Room Management**: Full CRUD operations for rooms with features like:
+  - Capacity management
+  - Status tracking (Available/Maintenance)
+  - Floor assignment
+  - Hourly pricing
+  - Feature tags (projector, whiteboard, video conference, etc.)
+- **Availability Checking**: Real-time room availability checking
+- **Search & Filtering**: Advanced search with status and type filters
+- **Pagination**: Efficient data loading with pagination
 
-## Expanding the ESLint configuration
+### User Management
+- User registration and authentication
+- Role-based access control
+- User status management
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Booking System
+- Room and class booking management
+- Booking status tracking
+- Conflict detection
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### Class Management
+- Class creation and scheduling
+- Instructor assignment
+- Room allocation
 
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
+## Getting Started
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Prerequisites
+- Node.js 18+ 
+- pnpm
+- MySQL database
+
+### Installation
+
+1. **Install dependencies:**
+   ```bash
+   pnpm install
+   ```
+
+2. **Set up the database:**
+   ```bash
+   cd apps/api
+   pnpm prisma migrate dev
+   pnpm prisma generate
+   ```
+
+3. **Seed the database:**
+   ```bash
+   pnpm seed
+   ```
+
+4. **Start the API server:**
+   ```bash
+   cd apps/api
+   pnpm dev
+   ```
+
+5. **Start the admin panel:**
+   ```bash
+   cd apps/admin
+   pnpm dev
+   ```
+
+### Default Login Credentials
+- **Email**: admin@jphone.com
+- **Password**: admin123
+
+## API Endpoints
+
+### Room Management
+- `GET /v1/rooms` - List all rooms with pagination and filtering
+- `POST /v1/rooms` - Create a new room
+- `GET /v1/rooms/:id` - Get room details with bookings
+- `PUT /v1/rooms/:id` - Update room information
+- `DELETE /v1/rooms/:id` - Delete a room (if no active bookings)
+- `GET /v1/rooms/:id/availability` - Check room availability
+
+### Room Types
+- `GET /v1/rooms/types` - List all room types
+- `POST /v1/rooms/types` - Create a new room type
+- `PUT /v1/rooms/types/:id` - Update room type
+- `DELETE /v1/rooms/types/:id` - Delete room type (if not in use)
+
+## Database Schema
+
+The system uses Prisma with MySQL and includes models for:
+- Users and authentication
+- Rooms and room types
+- Classes and schedules
+- Bookings and payments
+- Policies and events
+
+## Features
+
+### Responsive Design
+- Mobile-first approach
+- Collapsible sidebar navigation
+- Modern UI components with Tailwind CSS
+
+### Real-time Updates
+- Live data fetching
+- Optimistic updates
+- Error handling and validation
+
+### Security
+- JWT authentication
+- Input validation with Zod
+- SQL injection protection
+- CORS configuration
+
+## Development
+
+### Tech Stack
+- **Frontend**: React 18, TypeScript, Tailwind CSS, Heroicons
+- **Backend**: Node.js, Express, Prisma, MySQL
+- **Authentication**: JWT with bcrypt
+- **Validation**: Zod schema validation
+
+### Project Structure
+```
+apps/
+├── admin/          # React admin panel
+├── api/            # Express API server
+└── workers/        # Background job workers
+
+packages/
+└── shared/         # Shared utilities and types
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Contributing
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
 
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## License
+
+This project is licensed under the ISC License.
