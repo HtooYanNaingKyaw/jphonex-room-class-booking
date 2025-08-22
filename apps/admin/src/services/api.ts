@@ -80,6 +80,10 @@ export const userAPI = {
   // Adjust user points
   adjustPoints: (id: string, data: { delta: number; reason: string }) => 
     api.post(`/users/${id}/points`, data),
+  
+  // Get user point history  
+  getPointHistory: (id: string, params?: URLSearchParams) => 
+    api.get(`/users/${id}/points${params ? `?${params.toString()}` : ''}`),
 };
 
 // Classes API

@@ -296,10 +296,36 @@ usersRouter.get('/:id/points', async (req, res) => {
     const userId = BigInt(req.params.id);
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
+    const days = req.query.days as string;
+    const type = req.query.type as string;
+    const search = req.query.search as string;
+
+    // Build where clause
+    const where: any = { user_id: userId };
+    
+    // Date filtering
+    if (days && days !== 'all') {
+      const daysNum = parseInt(days);
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - daysNum);
+      where.created_at = { gte: startDate };
+    }
+    
+    // Transaction type filtering
+    if (type === 'earned') {
+      where.delta = { gt: 0 };
+    } else if (type === 'spent') {
+      where.delta = { lt: 0 };
+    }
+    
+    // Search by reason
+    if (search) {
+      where.reason = { contains: search, mode: 'insensitive' };
+    }
 
     const [points, total] = await Promise.all([
       prisma.pointsLedger.findMany({
-        where: { user_id: userId },
+        where,
         include: {
           booking: {
             include: {
@@ -316,7 +342,7 @@ usersRouter.get('/:id/points', async (req, res) => {
         take: limit,
         orderBy: { created_at: 'desc' },
       }),
-      prisma.pointsLedger.count({ where: { user_id: userId } }),
+      prisma.pointsLedger.count({ where }),
     ]);
 
     res.json({

@@ -8,11 +8,13 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
   XCircleIcon,
+  ClockIcon,
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import ConfirmDialog from '../components/ConfirmDialog';
 import FormModal from '../components/FormModal';
 import PointsAdjustmentModal from '../components/PointsAdjustmentModal';
+import PointHistoryModal from '../components/PointHistoryModal';
 import { TableSkeleton } from '../components/LoadingSkeleton';
 import { userAPI } from '../services/api';
 
@@ -66,11 +68,13 @@ const UsersTable = memo(({
   users, 
   onDelete, 
   onPointsAdjustment,
+  onPointHistory,
   onStatusChange
 }: {
   users: User[];
   onDelete: (user: User) => void;
   onPointsAdjustment: (user: User) => void;
+  onPointHistory: (user: User) => void;
   onStatusChange: (id: string, status: string) => void;
 }) => {
   return (
@@ -133,6 +137,13 @@ const UsersTable = memo(({
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                 <div className="flex space-x-2">
+                  <button
+                    onClick={() => onPointHistory(user)}
+                    className="text-blue-600 hover:text-blue-900"
+                    title="View Point History"
+                  >
+                    <ClockIcon className="h-4 w-4" />
+                  </button>
                   <button
                     onClick={() => onPointsAdjustment(user)}
                     className="text-indigo-600 hover:text-indigo-900"
@@ -349,6 +360,7 @@ export default function Users() {
   const [showFilters, setShowFilters] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [showPointsModal, setShowPointsModal] = useState(false);
+  const [showPointHistoryModal, setShowPointHistoryModal] = useState(false);
   const [selectedUserForPoints, setSelectedUserForPoints] = useState<User | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{ isOpen: boolean; id: string; name: string }>({
     isOpen: false,
@@ -454,13 +466,16 @@ export default function Users() {
 
   const createUser = async (userData: UserFormData) => {
     try {
-      await userAPI.createUser({
+      // Convert date string to ISO datetime string for backend validation
+      const submitData = {
         ...userData,
         role_id: parseInt(userData.role_id),
         phone: userData.phone || undefined,
         gender: userData.gender || undefined,
-        dob: userData.dob || undefined,
-      });
+        dob: userData.dob ? new Date(userData.dob + 'T00:00:00.000Z').toISOString() : undefined,
+      };
+      
+      await userAPI.createUser(submitData);
       
       toast.success('User created successfully');
       setShowModal(false);
@@ -474,7 +489,13 @@ export default function Users() {
 
   const updateUser = async ({ id, data }: { id: string; data: Partial<User> }) => {
     try {
-      await userAPI.updateUser(id, data);
+      // Convert date string to ISO datetime string if dob is being updated
+      const updateData = {
+        ...data,
+        dob: data.dob ? new Date(data.dob + 'T00:00:00.000Z').toISOString() : undefined,
+      };
+      
+      await userAPI.updateUser(id, updateData);
       
       toast.success('User updated successfully');
       // Refresh users data
@@ -606,6 +627,11 @@ export default function Users() {
     setShowPointsModal(true);
   }, []);
 
+  const handlePointHistory = useCallback((user: User) => {
+    setSelectedUserForPoints(user);
+    setShowPointHistoryModal(true);
+  }, []);
+
   const handlePointsSubmit = useCallback(async (delta: number, reason: string) => {
     if (!selectedUserForPoints) return;
     
@@ -694,16 +720,17 @@ export default function Users() {
       );
     }
 
-    if (users && users.length > 0) {
-      return (
-        <UsersTable 
-          users={users}
-          onDelete={handleDelete}
-          onPointsAdjustment={handlePointsAdjustment}
-          onStatusChange={handleStatusChange}
-        />
-      );
-    }
+            if (users && users.length > 0) {
+          return (
+            <UsersTable
+              users={users}
+              onDelete={handleDelete}
+              onPointsAdjustment={handlePointsAdjustment}
+              onPointHistory={handlePointHistory}
+              onStatusChange={handleStatusChange}
+            />
+          );
+        }
 
     return (
       <div className="text-center py-12">
@@ -1034,6 +1061,18 @@ export default function Users() {
         userName={selectedUserForPoints?.name || ''}
         currentPoints={selectedUserForPoints?.points_balance || 0}
         isSubmitting={false} // No mutation isPending here
+      />
+
+      {/* Point History Modal */}
+      <PointHistoryModal
+        isOpen={showPointHistoryModal}
+        onClose={() => {
+          setShowPointHistoryModal(false);
+          setSelectedUserForPoints(null);
+        }}
+        userName={selectedUserForPoints?.name || ''}
+        currentPoints={selectedUserForPoints?.points_balance || 0}
+        userId={selectedUserForPoints?.id || ''}
       />
 
       {/* Confirmation Dialog */}
