@@ -38,6 +38,10 @@ import Modal from '../components/Modal';
 
 A specialized modal component designed for forms with built-in form handling and footer actions.
 
+### 3. PointsAdjustmentModal (Specialized Component)
+
+A beautiful, user-friendly modal specifically designed for adjusting user points with visual feedback and validation.
+
 **Props:**
 - All props from Modal component
 - `onSubmit?: (e: React.FormEvent) => void` - Form submit handler
@@ -48,6 +52,14 @@ A specialized modal component designed for forms with built-in form handling and
 - `submitVariant?: 'primary' | 'secondary' | 'danger' | 'success'` - Button style (default: 'primary')
 - `showCancelButton?: boolean` - Show/hide cancel button (default: true)
 - `onCancel?: () => void` - Custom cancel handler
+
+**PointsAdjustmentModal Props:**
+- `isOpen: boolean` - Controls modal visibility
+- `onClose: () => void` - Function called when modal should close
+- `onSubmit: (delta: number, reason: string) => void` - Function called with points delta and reason
+- `userName: string` - Name of the user whose points are being adjusted
+- `currentPoints: number` - Current points balance of the user
+- `isSubmitting?: boolean` - Shows loading state during submission
 
 **Usage:**
 ```tsx
@@ -127,6 +139,18 @@ import FormModal from '../components/FormModal';
 >
   {/* Form fields here */}
 </FormModal>
+```
+
+### Points Adjustment Modal
+```tsx
+<PointsAdjustmentModal
+  isOpen={showPointsModal}
+  onClose={() => setShowPointsModal(false)}
+  onSubmit={handlePointsSubmit}
+  userName="John Doe"
+  currentPoints={150}
+  isSubmitting={isAdjusting}
+/>
 ```
 
 ### Modal with Custom Footer
