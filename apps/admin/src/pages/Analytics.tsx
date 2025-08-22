@@ -1,17 +1,26 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { CalendarIcon, ChartBarIcon, EyeIcon, ArrowTrendingUpIcon, UsersIcon, BuildingOfficeIcon } from '@heroicons/react/24/outline';
+import { analyticsAPI } from '../services/api';
 
 const fetchAnalytics = async (type: string, params: URLSearchParams) => {
-  const response = await fetch(`/v1/analytics/${type}?${params.toString()}`, {
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-  if (!response.ok) {
-    throw new Error(`Failed to fetch ${type} analytics`);
+  let response;
+  
+  switch (type) {
+    case 'bookings':
+      response = await analyticsAPI.getBookingsAnalytics(params);
+      break;
+    case 'revenue':
+      response = await analyticsAPI.getRevenueAnalytics(params);
+      break;
+    case 'users':
+      response = await analyticsAPI.getUsersAnalytics(params);
+      break;
+    default:
+      throw new Error(`Unknown analytics type: ${type}`);
   }
-  return response.json();
+  
+  return response.data;
 };
 
 const MetricCard = ({ title, value, subtitle, icon: Icon, color = 'indigo' }: {

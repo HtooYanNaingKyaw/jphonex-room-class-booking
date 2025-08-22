@@ -3,21 +3,18 @@ import {
   PlusIcon,
   PencilIcon,
   TrashIcon,
-  MagnifyingGlassIcon,
-  FunnelIcon,
-  EyeIcon,
   UsersIcon,
   WrenchScrewdriverIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
   BuildingOfficeIcon,
   CurrencyDollarIcon,
-  MapPinIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
 import ConfirmDialog from '../components/ConfirmDialog';
 import FormModal from '../components/FormModal';
 import { TableSkeleton } from '../components/LoadingSkeleton';
+import { roomAPI } from '../services/api';
 
 interface RoomType {
   id: number;
@@ -121,15 +118,14 @@ export default function Rooms() {
         ...(typeFilter !== 'all' && { room_type_id: typeFilter }),
       });
 
-      const response = await fetch(`http://localhost:3000/v1/rooms?${params}`);
-      const data = await response.json();
+      const response = await roomAPI.getRooms(params);
+      const data = response.data;
       
-      if (response.ok) {
-        setRooms(data.rooms);
-        setPagination(data.pagination);
-      }
-    } catch (error) {
+      setRooms(data.rooms);
+      setPagination(data.pagination);
+    } catch (error: any) {
       console.error('Error fetching rooms:', error);
+      toast.error(error.response?.data?.message || 'Failed to fetch rooms');
     } finally {
       setLoading(false);
     }
@@ -137,14 +133,13 @@ export default function Rooms() {
 
   const fetchRoomTypes = async () => {
     try {
-      const response = await fetch('http://localhost:3000/v1/rooms/types');
-      const data = await response.json();
+      const response = await roomAPI.getRoomTypes();
+      const data = response.data;
       
-      if (response.ok) {
-        setRoomTypes(data);
-      }
-    } catch (error) {
+      setRoomTypes(data);
+    } catch (error: any) {
       console.error('Error fetching room types:', error);
+      toast.error(error.response?.data?.message || 'Failed to fetch room types');
     }
   };
 
@@ -152,36 +147,28 @@ export default function Rooms() {
     e.preventDefault();
     
     try {
-      const url = editingItem 
-        ? `http://localhost:3000/v1/rooms/${editingItem.id}`
-        : 'http://localhost:3000/v1/rooms';
-      
-      const method = editingItem ? 'PUT' : 'POST';
-      
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          room_type_id: parseInt(formData.room_type_id),
-          capacity: parseInt(formData.capacity),
-          floor: formData.floor ? parseInt(formData.floor) : undefined,
-          price_per_hour: formData.price_per_hour ? parseFloat(formData.price_per_hour) : undefined,
-        }),
-      });
-      
-      if (response.ok) {
-        setShowModal(false);
-        resetForm();
-        fetchRooms();
-        toast.success(editingItem ? 'Room updated successfully' : 'Room created successfully');
+      const roomData = {
+        ...formData,
+        room_type_id: parseInt(formData.room_type_id),
+        capacity: parseInt(formData.capacity),
+        floor: formData.floor ? parseInt(formData.floor) : undefined,
+        price_per_hour: formData.price_per_hour ? parseFloat(formData.price_per_hour) : undefined,
+      };
+
+      if (editingItem) {
+        await roomAPI.updateRoom(editingItem.id.toString(), roomData);
+        toast.success('Room updated successfully');
       } else {
-        const error = await response.json();
-        toast.error(error.error || 'Failed to save room');
+        await roomAPI.createRoom(roomData);
+        toast.success('Room created successfully');
       }
-    } catch (error) {
+      
+      setShowModal(false);
+      resetForm();
+      fetchRooms();
+    } catch (error: any) {
       console.error('Error saving room:', error);
-      toast.error('An unexpected error occurred while saving the room.');
+      toast.error(error.response?.data?.message || 'Failed to save room');
     }
   };
 
@@ -189,56 +176,37 @@ export default function Rooms() {
     e.preventDefault();
     
     try {
-      const url = editingItem 
-        ? `http://localhost:3000/v1/rooms/types/${editingItem.id}`
-        : 'http://localhost:3000/v1/rooms/types';
-      
-      const method = editingItem ? 'PUT' : 'POST';
-      
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(typeFormData),
-      });
-      
-      if (response.ok) {
-        setShowModal(false);
-        resetForm();
-        fetchRoomTypes();
-        toast.success(editingItem ? 'Room type updated successfully' : 'Room type created successfully');
+      if (editingItem) {
+        await roomAPI.updateRoomType(editingItem.id.toString(), typeFormData);
+        toast.success('Room type updated successfully');
       } else {
-        const error = await response.json();
-        toast.error(error.error || 'Failed to save room type');
+        await roomAPI.createRoomType(typeFormData);
+        toast.success('Room type created successfully');
       }
-    } catch (error) {
+      
+      setShowModal(false);
+      resetForm();
+      fetchRoomTypes();
+    } catch (error: any) {
       console.error('Error saving room type:', error);
-      toast.error('An unexpected error occurred while saving the room type.');
+      toast.error(error.response?.data?.message || 'Failed to save room type');
     }
   };
 
   const handleDelete = async (id: number, type: 'room' | 'roomType') => {
     try {
-      const url = type === 'room' 
-        ? `http://localhost:3000/v1/rooms/${id}`
-        : `http://localhost:3000/v1/rooms/types/${id}`;
-      
-      const response = await fetch(url, { method: 'DELETE' });
-      
-      if (response.ok) {
-        if (type === 'room') {
-          fetchRooms();
-          toast.success('Room deleted successfully');
-        } else {
-          fetchRoomTypes();
-          toast.success('Room type deleted successfully');
-        }
+      if (type === 'room') {
+        await roomAPI.deleteRoom(id.toString());
+        fetchRooms();
+        toast.success('Room deleted successfully');
       } else {
-        const error = await response.json();
-        toast.error(error.error || 'Failed to delete item');
+        await roomAPI.deleteRoomType(id.toString());
+        fetchRoomTypes();
+        toast.success('Room type deleted successfully');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting item:', error);
-      toast.error('An unexpected error occurred while deleting the item.');
+      toast.error(error.response?.data?.message || 'Failed to delete item');
     }
   };
 

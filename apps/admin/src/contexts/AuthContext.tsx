@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
+import { authAPI } from '../services/api';
 
 interface User {
   id: string;
@@ -36,19 +37,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const response = await fetch('/v1/auth/me', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data.user);
-      } else {
-        localStorage.removeItem('admin_token');
-      }
-    } catch (error) {
+      const response = await authAPI.getCurrentUser();
+      setUser(response.data.user);
+    } catch (error: any) {
       console.error('Auth check error:', error);
       localStorage.removeItem('admin_token');
     } finally {
@@ -58,25 +49,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string) => {
     try {
-      const response = await fetch('/v1/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Login failed');
-      }
+      const response = await authAPI.login({ email, password });
+      const data = response.data;
 
       localStorage.setItem('admin_token', data.token);
       setUser(data.user);
       toast.success('Login successful!');
     } catch (error: any) {
-      toast.error(error.message || 'Login failed');
+      toast.error(error.response?.data?.message || error.message || 'Login failed');
       throw error;
     }
   };

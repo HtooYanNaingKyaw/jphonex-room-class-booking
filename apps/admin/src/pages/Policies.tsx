@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { policyAPI } from '../services/api';
 import {
   PlusIcon,
   PencilIcon,
@@ -29,11 +30,8 @@ interface PoliciesResponse {
 }
 
 const fetchPolicies = async (params: URLSearchParams): Promise<PoliciesResponse> => {
-  const response = await fetch(`/v1/policies?${params.toString()}`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch policies');
-  }
-  return response.json();
+  const response = await policyAPI.getPolicies(params);
+  return response.data;
 };
 
 export default function Policies() {
@@ -56,18 +54,8 @@ export default function Policies() {
 
   const createPolicyMutation = useMutation({
     mutationFn: async (data: { title: string; body: string; is_active: boolean }) => {
-      const response = await fetch('/v1/policies', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
-        },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) {
-        throw new Error('Failed to create policy');
-      }
-      return response.json();
+      const response = await policyAPI.createPolicy(data);
+      return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['policies'] });
@@ -75,24 +63,14 @@ export default function Policies() {
       toast.success('Policy created successfully');
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to create policy');
+      toast.error(error.response?.data?.message || error.message || 'Failed to create policy');
     },
   });
 
   const updatePolicyMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<Policy> }) => {
-      const response = await fetch(`/v1/policies/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
-        },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) {
-        throw new Error('Failed to update policy');
-      }
-      return response.json();
+      const response = await policyAPI.updatePolicy(id, data);
+      return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['policies'] });
@@ -100,51 +78,35 @@ export default function Policies() {
       toast.success('Policy updated successfully');
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to update policy');
+      toast.error(error.response?.data?.message || error.message || 'Failed to update policy');
     },
   });
 
   const togglePolicyMutation = useMutation({
     mutationFn: async (id: string) => {
-      const response = await fetch(`/v1/policies/${id}/toggle`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
-        },
-      });
-      if (!response.ok) {
-        throw new Error('Failed to toggle policy');
-      }
-      return response.json();
+      const response = await policyAPI.togglePolicy(id);
+      return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['policies'] });
       toast.success('Policy status updated');
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to update policy status');
+      toast.error(error.response?.data?.message || error.message || 'Failed to update policy status');
     },
   });
 
   const deletePolicyMutation = useMutation({
     mutationFn: async (id: string) => {
-      const response = await fetch(`/v1/policies/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
-        },
-      });
-      if (!response.ok) {
-        throw new Error('Failed to delete policy');
-      }
-      return response.json();
+      const response = await policyAPI.deletePolicy(id);
+      return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['policies'] });
       toast.success('Policy deleted successfully');
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to delete policy');
+      toast.error(error.response?.data?.message || error.message || 'Failed to delete policy');
     },
   });
 

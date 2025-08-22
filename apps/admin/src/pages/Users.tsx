@@ -13,6 +13,8 @@ import toast from 'react-hot-toast';
 import ConfirmDialog from '../components/ConfirmDialog';
 import FormModal from '../components/FormModal';
 import PointsAdjustmentModal from '../components/PointsAdjustmentModal';
+import { TableSkeleton } from '../components/LoadingSkeleton';
+import { userAPI } from '../services/api';
 
 interface User {
   id: string;
@@ -50,19 +52,13 @@ interface UserFormData {
 }
 
 const fetchUsers = async (params: URLSearchParams): Promise<UsersResponse> => {
-  const response = await fetch(`http://localhost:3000/v1/users?${params.toString()}`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch users');
-  }
-  return response.json();
+  const response = await userAPI.getUsers(params);
+  return response.data;
 };
 
 const fetchRoles = async () => {
-  const response = await fetch('http://localhost:3000/v1/users/roles/list');
-  if (!response.ok) {
-    throw new Error('Failed to fetch roles');
-  }
-  return response.json();
+  const response = await userAPI.getRoles();
+  return response.data;
 };
 
 // Memoized Users Table Component
@@ -458,24 +454,13 @@ export default function Users() {
 
   const createUser = async (userData: UserFormData) => {
     try {
-      const response = await fetch('http://localhost:3000/v1/users', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
-        },
-        body: JSON.stringify({
-          ...userData,
-          role_id: parseInt(userData.role_id),
-          phone: userData.phone || undefined,
-          gender: userData.gender || undefined,
-          dob: userData.dob || undefined,
-        }),
+      await userAPI.createUser({
+        ...userData,
+        role_id: parseInt(userData.role_id),
+        phone: userData.phone || undefined,
+        gender: userData.gender || undefined,
+        dob: userData.dob || undefined,
       });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to create user');
-      }
       
       toast.success('User created successfully');
       setShowModal(false);
@@ -483,71 +468,43 @@ export default function Users() {
       // Refresh users data
       fetchUsersData();
     } catch (error: any) {
-      toast.error(error.message || 'Failed to create user');
+      toast.error(error.response?.data?.message || error.message || 'Failed to create user');
     }
   };
 
   const updateUser = async ({ id, data }: { id: string; data: Partial<User> }) => {
     try {
-      const response = await fetch(`http://localhost:3000/v1/users/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
-        },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) {
-        throw new Error('Failed to update user');
-      }
+      await userAPI.updateUser(id, data);
       
       toast.success('User updated successfully');
       // Refresh users data
       fetchUsersData();
     } catch (error: any) {
-      toast.error(error.message || 'Failed to update user');
+      toast.error(error.response?.data?.message || error.message || 'Failed to update user');
     }
   };
 
   const deleteUser = async (id: string) => {
     try {
-      const response = await fetch(`http://localhost:3000/v1/users/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
-        },
-      });
-      if (!response.ok) {
-        throw new Error('Failed to delete user');
-      }
+      await userAPI.deleteUser(id);
       
       toast.success('User deleted successfully');
       // Refresh users data
       fetchUsersData();
     } catch (error: any) {
-      toast.error(error.message || 'Failed to delete user');
+      toast.error(error.response?.data?.message || error.message || 'Failed to delete user');
     }
   };
 
   const adjustPoints = async ({ id, delta, reason }: { id: string; delta: number; reason: string }) => {
     try {
-      const response = await fetch(`http://localhost:3000/v1/users/${id}/points`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
-        },
-        body: JSON.stringify({ delta, reason }),
-      });
-      if (!response.ok) {
-        throw new Error('Failed to adjust points');
-      }
+      await userAPI.adjustPoints(id, { delta, reason });
       
       toast.success('Points adjusted successfully');
       // Refresh users data
       fetchUsersData();
     } catch (error: any) {
-      toast.error(error.message || 'Failed to adjust points');
+      toast.error(error.response?.data?.message || error.message || 'Failed to adjust points');
     }
   };
 
@@ -719,11 +676,7 @@ export default function Users() {
 
   const renderTableContent = useCallback(() => {
     if (isLoading) {
-      return (
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-        </div>
-      );
+      return <TableSkeleton rows={10} columns={6} />;
     }
 
     if (error) {
@@ -817,7 +770,7 @@ export default function Users() {
         />
 
         {/* Search Status */}
-        {(searchQuery || statusFilter || roleFilter) && (
+        {/* {(searchQuery || statusFilter || roleFilter) && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
@@ -848,7 +801,7 @@ export default function Users() {
               </span>
             </div>
           </div>
-        )}
+        )} */}
 
         {/* Users Table */}
         <div className="bg-white shadow overflow-hidden sm:rounded-lg">

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { analyticsAPI } from '../services/api';
 import {
   UsersIcon,
   CalendarIcon,
@@ -7,7 +8,6 @@ import {
   BuildingOfficeIcon,
   ClockIcon,
   CheckCircleIcon,
-  ExclamationTriangleIcon,
   ArrowTrendingUpIcon,
   ArrowTrendingDownIcon,
   EyeIcon,
@@ -51,11 +51,8 @@ interface DashboardData {
 }
 
 const fetchDashboardOverview = async (): Promise<DashboardData> => {
-  const response = await fetch('/v1/analytics/dashboard');
-  if (!response.ok) {
-    throw new Error('Failed to fetch dashboard data');
-  }
-  return response.json();
+  const response = await analyticsAPI.getDashboardAnalytics();
+  return response.data;
 };
 
 const StatCard = ({ title, value, icon: Icon, change, changeType, trend, subtitle }: {

@@ -12,6 +12,9 @@ import {
   AcademicCapIcon,
 } from '@heroicons/react/24/outline';
 import FormModal from '../components/FormModal';
+import { TableSkeleton } from '../components/LoadingSkeleton';
+import { classAPI, userAPI, roomAPI } from '../services/api';
+import toast from 'react-hot-toast';
 
 interface User {
   id: number;
@@ -107,15 +110,14 @@ export default function Classes() {
         ...(instructorFilter !== 'all' && { instructor_id: instructorFilter }),
       });
 
-      const response = await fetch(`http://localhost:3000/v1/classes?${params}`);
-      const data = await response.json();
+      const response = await classAPI.getClasses(params);
+      const data = response.data;
       
-      if (response.ok) {
-        setClasses(data.classes);
-        setPagination(data.pagination);
-      }
-    } catch (error) {
+      setClasses(data.classes);
+      setPagination(data.pagination);
+    } catch (error: any) {
       console.error('Error fetching classes:', error);
+      toast.error(error.response?.data?.message || 'Failed to fetch classes');
     } finally {
       setLoading(false);
     }
@@ -123,27 +125,25 @@ export default function Classes() {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch('http://localhost:3000/v1/users');
-      const data = await response.json();
+      const response = await userAPI.getUsers(new URLSearchParams());
+      const data = response.data;
       
-      if (response.ok) {
-        setUsers(data.users || data);
-      }
-    } catch (error) {
+      setUsers(data.users || data);
+    } catch (error: any) {
       console.error('Error fetching users:', error);
+      toast.error(error.response?.data?.message || 'Failed to fetch users');
     }
   };
 
   const fetchRooms = async () => {
     try {
-      const response = await fetch('http://localhost:3000/v1/rooms');
-      const data = await response.json();
+      const response = await roomAPI.getRooms();
+      const data = response.data;
       
-      if (response.ok) {
-        setRooms(data.rooms || data);
-      }
-    } catch (error) {
+      setRooms(data.rooms || data);
+    } catch (error: any) {
       console.error('Error fetching rooms:', error);
+      toast.error(error.response?.data?.message || 'Failed to fetch rooms');
     }
   };
 
@@ -151,33 +151,26 @@ export default function Classes() {
     e.preventDefault();
     
     try {
-      const url = editingItem 
-        ? `http://localhost:3000/v1/classes/${editingItem.id}`
-        : 'http://localhost:3000/v1/classes';
-      
-      const method = editingItem ? 'PUT' : 'POST';
-      
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          instructor_id: parseInt(formData.instructor_id),
-          max_seats: parseInt(formData.max_seats),
-        }),
-      });
-      
-      if (response.ok) {
-        setShowModal(false);
-        resetForm();
-        fetchClasses();
+      const classData = {
+        ...formData,
+        instructor_id: parseInt(formData.instructor_id),
+        max_seats: parseInt(formData.max_seats),
+      };
+
+      if (editingItem) {
+        await classAPI.updateClass(editingItem.id.toString(), classData);
+        toast.success('Class updated successfully');
       } else {
-        const error = await response.json();
-        alert(error.error || 'Failed to save class');
+        await classAPI.createClass(classData);
+        toast.success('Class created successfully');
       }
-    } catch (error) {
+      
+      setShowModal(false);
+      resetForm();
+      fetchClasses();
+    } catch (error: any) {
       console.error('Error saving class:', error);
-      alert('Failed to save class');
+      toast.error(error.response?.data?.message || 'Failed to save class');
     }
   };
 
@@ -192,45 +185,38 @@ export default function Classes() {
       const endDate = new Date(scheduleFormData.ends_at);
       
       if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-        alert('Please enter valid start and end dates');
+        toast.error('Please enter valid start and end dates');
         return;
       }
       
       if (startDate >= endDate) {
-        alert('End date must be after start date');
+        toast.error('End date must be after start date');
         return;
       }
       
-      const url = editingItem 
-        ? `http://localhost:3000/v1/classes/schedules/${editingItem.id}`
-        : `http://localhost:3000/v1/classes/${selectedClass.id}/schedules`;
-      
-      const method = editingItem ? 'PUT' : 'POST';
-      
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...scheduleFormData,
-          class_id: selectedClass.id,
-          room_id: scheduleFormData.room_id ? parseInt(scheduleFormData.room_id) : undefined,
-          capacity_override: scheduleFormData.capacity_override ? parseInt(scheduleFormData.capacity_override) : undefined,
-          starts_at: startDate.toISOString(),
-          ends_at: endDate.toISOString(),
-        }),
-      });
-      
-      if (response.ok) {
-        setShowModal(false);
-        resetForm();
-        fetchClasses();
+      const scheduleData = {
+        ...scheduleFormData,
+        class_id: selectedClass.id,
+        room_id: scheduleFormData.room_id ? parseInt(scheduleFormData.room_id) : undefined,
+        capacity_override: scheduleFormData.capacity_override ? parseInt(scheduleFormData.capacity_override) : undefined,
+        starts_at: startDate.toISOString(),
+        ends_at: endDate.toISOString(),
+      };
+
+      if (editingItem) {
+        await classAPI.updateSchedule(editingItem.id.toString(), scheduleData);
+        toast.success('Schedule updated successfully');
       } else {
-        const error = await response.json();
-        alert(error.error || 'Failed to save schedule');
+        await classAPI.createSchedule(scheduleData);
+        toast.success('Schedule created successfully');
       }
-    } catch (error) {
+      
+      setShowModal(false);
+      resetForm();
+      fetchClasses();
+    } catch (error: any) {
       console.error('Error saving schedule:', error);
-      alert('Failed to save schedule');
+      toast.error(error.response?.data?.message || 'Failed to save schedule');
     }
   };
 
@@ -238,21 +224,18 @@ export default function Classes() {
     if (!confirm('Are you sure you want to delete this item?')) return;
     
     try {
-      const url = type === 'class' 
-        ? `http://localhost:3000/v1/classes/${id}`
-        : `http://localhost:3000/v1/classes/schedules/${id}`;
-      
-      const response = await fetch(url, { method: 'DELETE' });
-      
-      if (response.ok) {
-        fetchClasses();
+      if (type === 'class') {
+        await classAPI.deleteClass(id.toString());
+        toast.success('Class deleted successfully');
       } else {
-        const error = await response.json();
-        alert(error.error || 'Failed to delete item');
+        await classAPI.deleteSchedule(id.toString());
+        toast.success('Schedule deleted successfully');
       }
-    } catch (error) {
+      
+      fetchClasses();
+    } catch (error: any) {
       console.error('Error deleting item:', error);
-      alert('Failed to delete item');
+      toast.error(error.response?.data?.message || 'Failed to delete item');
     }
   };
 
@@ -470,10 +453,7 @@ export default function Classes() {
         {activeTab === 'classes' ? (
           <div className="bg-white shadow-lg rounded-xl border border-gray-100 overflow-hidden">
             {loading ? (
-              <div className="p-8 text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-                <p className="mt-4 text-gray-600">Loading classes...</p>
-              </div>
+              <TableSkeleton rows={8} columns={5} />
             ) : (
               <>
                 <div className="overflow-x-auto">
@@ -563,9 +543,8 @@ export default function Classes() {
                           <td colSpan={5} className="px-6 py-8 text-center">
                             <div className="text-gray-500">
                               {loading ? (
-                                <div className="flex items-center justify-center">
-                                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600 mr-2"></div>
-                                  Loading classes...
+                                <div className="flex items-center justify-center text-gray-500">
+                                  <TableSkeleton rows={1} columns={5} />
                                 </div>
                               ) : (
                                 <div>
