@@ -1,17 +1,23 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   PlusIcon,
   PencilIcon,
   TrashIcon,
+  MagnifyingGlassIcon,
+  FunnelIcon,
   EyeIcon,
-  BuildingOfficeIcon,
   UsersIcon,
-  CurrencyDollarIcon,
-  MapPinIcon,
+  WrenchScrewdriverIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
-  WrenchScrewdriverIcon,
+  BuildingOfficeIcon,
+  CurrencyDollarIcon,
+  MapPinIcon,
 } from '@heroicons/react/24/outline';
+import { toast } from 'react-hot-toast';
+import ConfirmDialog from '../components/ConfirmDialog';
+import FormModal from '../components/FormModal';
+import { TableSkeleton } from '../components/LoadingSkeleton';
 
 interface RoomType {
   id: number;
@@ -89,6 +95,16 @@ export default function Rooms() {
     code: '',
   });
 
+  const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
+  const [typeFormErrors, setTypeFormErrors] = useState<{ [key: string]: string }>({});
+
+  const [confirmDelete, setConfirmDelete] = useState<{ isOpen: boolean; id: number; type: 'room' | 'roomType'; name: string }>({
+    isOpen: false,
+    id: 0,
+    type: 'room',
+    name: ''
+  });
+
   useEffect(() => {
     fetchRooms();
     fetchRoomTypes();
@@ -158,13 +174,14 @@ export default function Rooms() {
         setShowModal(false);
         resetForm();
         fetchRooms();
+        toast.success(editingItem ? 'Room updated successfully' : 'Room created successfully');
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to save room');
+        toast.error(error.error || 'Failed to save room');
       }
     } catch (error) {
       console.error('Error saving room:', error);
-      alert('Failed to save room');
+      toast.error('An unexpected error occurred while saving the room.');
     }
   };
 
@@ -188,19 +205,18 @@ export default function Rooms() {
         setShowModal(false);
         resetForm();
         fetchRoomTypes();
+        toast.success(editingItem ? 'Room type updated successfully' : 'Room type created successfully');
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to save room type');
+        toast.error(error.error || 'Failed to save room type');
       }
     } catch (error) {
       console.error('Error saving room type:', error);
-      alert('Failed to save room type');
+      toast.error('An unexpected error occurred while saving the room type.');
     }
   };
 
   const handleDelete = async (id: number, type: 'room' | 'roomType') => {
-    if (!confirm('Are you sure you want to delete this item?')) return;
-    
     try {
       const url = type === 'room' 
         ? `http://localhost:3000/v1/rooms/${id}`
@@ -211,16 +227,18 @@ export default function Rooms() {
       if (response.ok) {
         if (type === 'room') {
           fetchRooms();
+          toast.success('Room deleted successfully');
         } else {
           fetchRoomTypes();
+          toast.success('Room type deleted successfully');
         }
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to delete item');
+        toast.error(error.error || 'Failed to delete item');
       }
     } catch (error) {
       console.error('Error deleting item:', error);
-      alert('Failed to delete item');
+      toast.error('An unexpected error occurred while deleting the item.');
     }
   };
 
@@ -239,6 +257,8 @@ export default function Rooms() {
       code: '',
     });
     setEditingItem(null);
+    setFormErrors({});
+    setTypeFormErrors({});
   };
 
   // Helper function to convert Decimal to number
@@ -282,10 +302,10 @@ export default function Rooms() {
       }
     } else {
       if (item) {
-        const roomType = item as RoomType;
+        const typeItem = item as RoomType;
         setTypeFormData({
-          name: roomType.name,
-          code: roomType.code || '',
+          name: typeItem.name,
+          code: typeItem.code || '',
         });
       } else {
         setTypeFormData({
@@ -296,6 +316,15 @@ export default function Rooms() {
     }
     
     setShowModal(true);
+  };
+
+  const openDeleteConfirm = (id: number, type: 'room' | 'roomType', name: string) => {
+    setConfirmDelete({
+      isOpen: true,
+      id,
+      type,
+      name
+    });
   };
 
   const getStatusIcon = (status: string) => {
@@ -445,10 +474,7 @@ export default function Rooms() {
         {activeTab === 'rooms' ? (
           <div className="bg-white shadow-lg rounded-xl border border-gray-100 overflow-hidden">
             {loading ? (
-              <div className="p-8 text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-                <p className="mt-4 text-gray-600">Loading rooms...</p>
-              </div>
+              <TableSkeleton rows={5} columns={7} />
             ) : (
               <>
                 <div className="overflow-x-auto">
@@ -529,7 +555,7 @@ export default function Rooms() {
                                 <PencilIcon className="h-4 w-4" />
                               </button>
                               <button
-                                onClick={() => handleDelete(room.id, 'room')}
+                                onClick={() => openDeleteConfirm(room.id, 'room', room.name)}
                                 className="text-red-600 hover:text-red-900"
                               >
                                 <TrashIcon className="h-4 w-4" />
@@ -541,6 +567,31 @@ export default function Rooms() {
                     </tbody>
                   </table>
                 </div>
+                
+                {/* Empty state */}
+                {rooms.length === 0 && !loading && (
+                  <div className="text-center py-12">
+                    <BuildingOfficeIcon className="mx-auto h-12 w-12 text-gray-400" />
+                    <h3 className="mt-2 text-sm font-medium text-gray-900">No rooms found</h3>
+                    <p className="mt-1 text-sm text-gray-500">
+                      {searchTerm || statusFilter !== 'all' || typeFilter !== 'all' 
+                        ? 'Try adjusting your search or filters.'
+                        : 'Get started by creating a new room.'
+                      }
+                    </p>
+                    {!searchTerm && statusFilter === 'all' && typeFilter === 'all' && (
+                      <div className="mt-6">
+                        <button
+                          onClick={() => openModal('room')}
+                          className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                        >
+                          <PlusIcon className="-ml-1 mr-2 h-5 w-5" />
+                          Add Room
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
                 
                 {/* Pagination */}
                 {pagination.pages > 1 && (
@@ -645,7 +696,7 @@ export default function Rooms() {
                             <PencilIcon className="h-4 w-4" />
                           </button>
                           <button
-                            onClick={() => handleDelete(type.id, 'roomType')}
+                            onClick={() => openDeleteConfirm(type.id, 'roomType', type.name)}
                             className="text-red-600 hover:text-red-900"
                           >
                             <TrashIcon className="h-4 w-4" />
@@ -657,164 +708,194 @@ export default function Rooms() {
                 </tbody>
               </table>
             </div>
+            
+            {/* Empty state for room types */}
+            {roomTypes.length === 0 && (
+              <div className="text-center py-12">
+                <BuildingOfficeIcon className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No room types found</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Get started by creating a new room type.
+                </p>
+                <div className="mt-6">
+                  <button
+                    onClick={() => openModal('roomType')}
+                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  >
+                    <PlusIcon className="-ml-1 mr-2 h-5 w-5" />
+                    Add Room Type
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
 
       {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                {editingItem ? 'Edit' : 'Add'} {modalType === 'room' ? 'Room' : 'Room Type'}
-              </h3>
+      {modalType === 'room' ? (
+        <FormModal
+          isOpen={showModal}
+          onClose={() => {
+            setShowModal(false);
+            resetForm();
+          }}
+          title={`${editingItem ? 'Edit' : 'Add'} Room`}
+          onSubmit={handleSubmit}
+          submitText={editingItem ? 'Update' : 'Create'}
+          size="lg"
+        >
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Room Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
               
-              <form onSubmit={modalType === 'room' ? handleSubmit : handleTypeSubmit}>
-                {modalType === 'room' ? (
-                  <>
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Room Name *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={formData.name}
-                        onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      />
-                    </div>
-                    
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Room Type *
-                      </label>
-                      <select
-                        required
-                        value={formData.room_type_id}
-                        onChange={(e) => setFormData(prev => ({ ...prev, room_type_id: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      >
-                        <option value="">Select Room Type</option>
-                        {roomTypes.map((type) => (
-                          <option key={type.id} value={type.id}>
-                            {type.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Capacity *
-                      </label>
-                      <input
-                        type="number"
-                        required
-                        min="1"
-                        value={formData.capacity}
-                        onChange={(e) => setFormData(prev => ({ ...prev, capacity: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      />
-                    </div>
-                    
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Status
-                      </label>
-                      <select
-                        value={formData.status}
-                        onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value as 'available' | 'maintenance' | 'occupied' }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      >
-                        <option value="available">Available</option>
-                        <option value="maintenance">Maintenance</option>
-                        <option value="occupied">Occupied</option>
-                      </select>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Floor
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          value={formData.floor}
-                          onChange={(e) => setFormData(prev => ({ ...prev, floor: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Price/Hour
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={formData.price_per_hour}
-                          onChange={(e) => setFormData(prev => ({ ...prev, price_per_hour: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Type Name *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={typeFormData.name}
-                        onChange={(e) => setTypeFormData(prev => ({ ...prev, name: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      />
-                    </div>
-                    
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Code (Optional)
-                      </label>
-                      <input
-                        type="text"
-                        value={typeFormData.code}
-                        onChange={(e) => setTypeFormData(prev => ({ ...prev, code: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      />
-                    </div>
-                  </>
-                )}
-                
-                <div className="flex justify-end space-x-3 mt-6">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowModal(false);
-                      resetForm();
-                    }}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-md"
-                  >
-                    {editingItem ? 'Update' : 'Create'}
-                  </button>
-                </div>
-              </form>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Room Type *
+                </label>
+                <select
+                  required
+                  value={formData.room_type_id}
+                  onChange={(e) => setFormData(prev => ({ ...prev, room_type_id: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">Select Room Type</option>
+                  {roomTypes.map((type) => (
+                    <option key={type.id} value={type.id}>
+                      {type.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Capacity *
+                </label>
+                <input
+                  type="number"
+                  required
+                  min="1"
+                  value={formData.capacity}
+                  onChange={(e) => setFormData(prev => ({ ...prev, capacity: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Status
+                </label>
+                <select
+                  value={formData.status}
+                  onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value as 'available' | 'maintenance' | 'occupied' }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="available">Available</option>
+                  <option value="maintenance">Maintenance</option>
+                  <option value="occupied">Occupied</option>
+                </select>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Floor
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.floor}
+                  onChange={(e) => setFormData(prev => ({ ...prev, floor: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Price/Hour
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.price_per_hour}
+                  onChange={(e) => setFormData(prev => ({ ...prev, price_per_hour: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
             </div>
           </div>
-        </div>
+        </FormModal>
+      ) : (
+        <FormModal
+          isOpen={showModal}
+          onClose={() => {
+            setShowModal(false);
+            resetForm();
+          }}
+          title={`${editingItem ? 'Edit' : 'Add'} Room Type`}
+          onSubmit={handleTypeSubmit}
+          submitText={editingItem ? 'Update' : 'Create'}
+          size="md"
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Type Name *
+              </label>
+              <input
+                type="text"
+                required
+                value={typeFormData.name}
+                onChange={(e) => setTypeFormData(prev => ({ ...prev, name: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Code (Optional)
+              </label>
+              <input
+                type="text"
+                value={typeFormData.code}
+                onChange={(e) => setTypeFormData(prev => ({ ...prev, code: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+        </FormModal>
       )}
+
+      {/* Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDelete.isOpen}
+        onClose={() => setConfirmDelete(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={() => {
+          handleDelete(confirmDelete.id, confirmDelete.type);
+          setConfirmDelete(prev => ({ ...prev, isOpen: false }));
+        }}
+        title={`Delete ${confirmDelete.type === 'room' ? 'Room' : 'Room Type'}`}
+        message={`Are you sure you want to delete "${confirmDelete.name}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
+      />
     </div>
   );
 }
